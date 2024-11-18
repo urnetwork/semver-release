@@ -10,6 +10,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/urfave/cli/v2"
@@ -135,35 +136,32 @@ func main() {
 				return nil
 			}
 
-			// tagTree, err := tagCommit.Tree()
-			// if err != nil {
-			// 	return fmt.Errorf("failed to get tag tree: %w", err)
-			// }
+			wtStatus, err := wt.Status()
+			if err != nil {
+				return fmt.Errorf("failed to get worktree status: %w", err)
+			}
 
-			// headTree, err := headCommit.Tree()
-			// if err != nil {
-			// 	return fmt.Errorf("failed to get head tree: %w", err)
-			// }
+			releaseCommitHash := headCommit.Hash
 
-			// diff, err := tagTree.Diff(headTree)
+			if !wtStatus.IsClean() {
+				wt.Add(".")
+				releaseCommitHash, err = wt.Commit(
+					"Release "+nextVersion.String(),
+					&git.CommitOptions{
+						Author: &object.Signature{
+							Name:  "semver-release",
+							Email: "noreply@bringyour.com",
+							When:  time.Now(),
+						},
+					},
+				)
+				if err != nil {
+					return fmt.Errorf("failed to commit changes: %w", err)
+				}
+				fmt.Println("Committed changes")
+			}
 
-			// if err != nil {
-			// 	return fmt.Errorf("failed to get diff: %w", err)
-			// }
-
-			// fmt.Println("head:", head.Hash())
-			// fmt.Println("tag:", tagRef.Hash())
-			// if diff.Len() == 0 {
-			// 	return fmt.Errorf("no changes since last release")
-			// }
-
-			// for _, c := range diff {
-			// 	fmt.Println(c.String())
-			// }
-
-			return nil
-
-			_, err = repo.CreateTag("v"+nextVersion.String(), head.Hash(), &git.CreateTagOptions{
+			_, err = repo.CreateTag("v"+nextVersion.String(), releaseCommitHash, &git.CreateTagOptions{
 				Tagger: &object.Signature{
 					Name:  "semver-release",
 					Email: "noreply@bringyour.com",
@@ -178,6 +176,9 @@ func main() {
 
 			err = repo.Push(&git.PushOptions{
 				FollowTags: true,
+				RefSpecs: []config.RefSpec{
+					"refs/tags/*:refs/tags/*",
+				},
 			})
 
 			if err != nil {
