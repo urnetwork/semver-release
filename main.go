@@ -86,7 +86,6 @@ func main() {
 				semverTags = append(semverTags, semver.MustParse("v0.0.0"))
 			}
 
-			// 7. Increment the version
 			sort.Sort(semverTags)
 
 			latestVersion := semverTags[len(semverTags)-1]
@@ -97,12 +96,11 @@ func main() {
 				return fmt.Errorf("failed to get tag: %w", err)
 			}
 
-			tagObject, err := repo.TagObject(tagRef.Hash())
-
 			tagCommitHash := tagRef.Hash()
 
+			tagObject, err := repo.TagObject(tagRef.Hash())
 			switch err {
-			case plumbing.ErrInvalidType:
+			case plumbing.ErrObjectNotFound:
 				// tagObject is not a tag, it's a commit
 			case nil:
 				tagCommitHash = tagObject.Target
