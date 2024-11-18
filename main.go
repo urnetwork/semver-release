@@ -54,14 +54,14 @@ func main() {
 				return fmt.Errorf("failed to get worktree: %w", err)
 			}
 
-			status, err := wt.Status()
+			_, err = wt.Status()
 			if err != nil {
 				return fmt.Errorf("failed to get status: %w", err)
 			}
 
-			if !status.IsClean() {
-				return fmt.Errorf("%s\nworking tree is not clean, please commit changes", status.String())
-			}
+			// if !status.IsClean() {
+			// 	return fmt.Errorf("%s\nworking tree is not clean, please commit changes", status.String())
+			// }
 
 			tags, err := repo.Tags()
 			if err != nil {
@@ -92,12 +92,67 @@ func main() {
 			latestVersion := semverTags[len(semverTags)-1]
 			fmt.Println("Latest version:", latestVersion)
 
+			tagRef, err := repo.Tag("v" + latestVersion.String())
+			if err != nil {
+				return fmt.Errorf("failed to get tag: %w", err)
+			}
+
+			fmt.Println("Tag:", tagRef.Hash())
+
 			nextVersion := latestVersion.IncPatch()
 
 			head, err := repo.Head()
 			if err != nil {
 				return fmt.Errorf("failed to get head: %w", err)
 			}
+
+			tagCommit, err := repo.CommitObject(tagRef.Hash())
+			if err != nil {
+				return fmt.Errorf("failed to get tag commit: %w", err)
+			}
+
+			headCommit, err := repo.CommitObject(head.Hash())
+			if err != nil {
+				return fmt.Errorf("failed to get head commit: %w", err)
+			}
+
+			if tagCommit.Hash == headCommit.Hash {
+				fmt.Println("No changes since last release, nothing to tag")
+				return nil
+			}
+
+			if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
+				fmt.Println("No changes since last release, nothing to tag")
+				return nil
+			}
+
+			// tagTree, err := tagCommit.Tree()
+			// if err != nil {
+			// 	return fmt.Errorf("failed to get tag tree: %w", err)
+			// }
+
+			// headTree, err := headCommit.Tree()
+			// if err != nil {
+			// 	return fmt.Errorf("failed to get head tree: %w", err)
+			// }
+
+			// diff, err := tagTree.Diff(headTree)
+
+			// if err != nil {
+			// 	return fmt.Errorf("failed to get diff: %w", err)
+			// }
+
+			// fmt.Println("head:", head.Hash())
+			// fmt.Println("tag:", tagRef.Hash())
+			// if diff.Len() == 0 {
+			// 	return fmt.Errorf("no changes since last release")
+			// }
+
+			// for _, c := range diff {
+			// 	fmt.Println(c.String())
+			// }
+
+			return nil
 
 			_, err = repo.CreateTag("v"+nextVersion.String(), head.Hash(), &git.CreateTagOptions{
 				Tagger: &object.Signature{
