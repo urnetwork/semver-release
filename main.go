@@ -97,7 +97,18 @@ func main() {
 				return fmt.Errorf("failed to get tag: %w", err)
 			}
 
-			fmt.Println("Tag:", tagRef.Hash())
+			tagObject, err := repo.TagObject(tagRef.Hash())
+
+			tagCommitHash := tagRef.Hash()
+
+			switch err {
+			case plumbing.ErrInvalidType:
+				// tagObject is not a tag, it's a commit
+			case nil:
+				tagCommitHash = tagObject.Target
+			default:
+				return fmt.Errorf("failed to get tag object: %w", err)
+			}
 
 			nextVersion := latestVersion.IncPatch()
 
@@ -106,7 +117,7 @@ func main() {
 				return fmt.Errorf("failed to get head: %w", err)
 			}
 
-			tagCommit, err := repo.CommitObject(tagRef.Hash())
+			tagCommit, err := repo.CommitObject(tagCommitHash)
 			if err != nil {
 				return fmt.Errorf("failed to get tag commit: %w", err)
 			}
