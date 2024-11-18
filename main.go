@@ -10,7 +10,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/urfave/cli/v2"
@@ -174,16 +173,16 @@ func main() {
 				return fmt.Errorf("failed to create tag: %w", err)
 			}
 
-			err = repo.Push(&git.PushOptions{
-				FollowTags: true,
-				RefSpecs: []config.RefSpec{
-					"refs/tags/*:refs/tags/*",
-				},
-			})
+			// err = repo.Push(&git.PushOptions{
+			// 	FollowTags: true,
+			// 	RefSpecs: []config.RefSpec{
+			// 		"refs/tags/*:refs/tags/*",
+			// 	},
+			// })
 
-			if err != nil {
-				return fmt.Errorf("failed to push tag: %w", err)
-			}
+			// if err != nil {
+			// 	return fmt.Errorf("failed to push tag: %w", err)
+			// }
 
 			return nil
 
