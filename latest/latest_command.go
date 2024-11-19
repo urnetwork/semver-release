@@ -40,7 +40,7 @@ func Command() *cli.Command {
 				return fmt.Errorf("repo path is required")
 			}
 
-			dir, err := filepath.Abs(".")
+			dir, err := filepath.Abs(repoPath)
 			if err != nil {
 				return fmt.Errorf("failed to get absolute path of the current dir: %w", err)
 			}
