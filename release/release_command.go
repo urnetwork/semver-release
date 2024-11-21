@@ -17,7 +17,8 @@ import (
 
 func Command() *cli.Command {
 	cfg := struct {
-		releaseType string
+		releaseType  string
+		timedVersion string
 	}{}
 
 	return &cli.Command{
@@ -157,12 +158,13 @@ func Command() *cli.Command {
 			}
 
 			_, err = repo.CreateTag("v"+nextVersion.String(), releaseCommitHash, &git.CreateTagOptions{
+
 				Tagger: &object.Signature{
 					Name:  "semver-release",
 					Email: "noreply@bringyour.com",
 					When:  time.Now(),
 				},
-				Message: "Release " + nextVersion.String(),
+				Message: "Release " + nextVersion.String() + "\n\n" + "comment",
 			})
 
 			if err != nil {
