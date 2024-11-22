@@ -87,33 +87,9 @@ func Command() *cli.Command {
 			latestVersion := semverTags[len(semverTags)-1]
 			fmt.Println("Latest version:", latestVersion)
 
-			tagRef, err := repo.Tag("v" + latestVersion.String())
-			if err != nil {
-				return fmt.Errorf("failed to get tag: %w", err)
-			}
-
-			tagCommitHash := tagRef.Hash()
-
-			tagObject, err := repo.TagObject(tagRef.Hash())
-			switch err {
-			case plumbing.ErrObjectNotFound:
-				// tagObject is not a tag, it's a commit
-			case nil:
-				tagCommitHash = tagObject.Target
-			default:
-				return fmt.Errorf("failed to get tag object: %w", err)
-			}
-
-			nextVersion := latestVersion.IncPatch()
-
 			head, err := repo.Head()
 			if err != nil {
 				return fmt.Errorf("failed to get head: %w", err)
-			}
-
-			tagCommit, err := repo.CommitObject(tagCommitHash)
-			if err != nil {
-				return fmt.Errorf("failed to get tag commit: %w", err)
 			}
 
 			headCommit, err := repo.CommitObject(head.Hash())
@@ -121,15 +97,42 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get head commit: %w", err)
 			}
 
-			if tagCommit.Hash == headCommit.Hash {
-				fmt.Println("No changes since last release, nothing to tag")
-				return nil
+			tagRef, err := repo.Tag("v" + latestVersion.String())
+			switch err {
+			case git.ErrTagNotFound:
+				fmt.Println("this is an initial release")
+			case nil:
+				tagCommitHash := tagRef.Hash()
+
+				tagObject, err := repo.TagObject(tagRef.Hash())
+				switch err {
+				case plumbing.ErrObjectNotFound:
+					// tagObject is not a tag, it's a commit
+				case nil:
+					tagCommitHash = tagObject.Target
+				default:
+					return fmt.Errorf("failed to get tag object: %w", err)
+				}
+
+				tagCommit, err := repo.CommitObject(tagCommitHash)
+				if err != nil {
+					return fmt.Errorf("failed to get tag commit: %w", err)
+				}
+
+				if tagCommit.Hash == headCommit.Hash {
+					fmt.Println("No changes since last release, nothing to tag")
+					return nil
+				}
+
+				if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
+					fmt.Println("No changes since last release, nothing to tag")
+					return nil
+				}
+			default:
+				return fmt.Errorf("failed to get tag: %w", err)
 			}
 
-			if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
-				fmt.Println("No changes since last release, nothing to tag")
-				return nil
-			}
+			nextVersion := latestVersion.IncPatch()
 
 			wtStatus, err := wt.Status()
 			if err != nil {
@@ -156,14 +159,7 @@ func Command() *cli.Command {
 				fmt.Println("Committed changes")
 			}
 
-			_, err = repo.CreateTag("v"+nextVersion.String(), releaseCommitHash, &git.CreateTagOptions{
-				Tagger: &object.Signature{
-					Name:  "semver-release",
-					Email: "noreply@bringyour.com",
-					When:  time.Now(),
-				},
-				Message: "Release " + nextVersion.String(),
-			})
+			_, err = repo.CreateTag("v"+nextVersion.String(), releaseCommitHash, nil)
 
 			if err != nil {
 				return fmt.Errorf("failed to create tag: %w", err)
