@@ -88,7 +88,7 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get head commit: %w", err)
 			}
 
-			fmt.Println("head tree hash", headCommit.TreeHash)
+			headTreeHash := headCommit.TreeHash
 
 			if !st.IsClean() {
 				_, err := wt.Add(".")
@@ -110,17 +110,13 @@ func Command() *cli.Command {
 					Commit: headCommit.Hash,
 					Mode:   git.MixedReset,
 				})
+
 				newCommit, err := repo.CommitObject(ch)
 				if err != nil {
 					return fmt.Errorf("failed to get commit: %w", err)
 				}
 
-				// headCommitTree, err := headCommit.Tree()
-				// if err != nil {
-				// 	return fmt.Errorf("failed to get commit tree: %w", err)
-				// }
-
-				fmt.Println("new commit tree hash", newCommit.TreeHash)
+				headTreeHash = newCommit.TreeHash
 
 			}
 
@@ -148,14 +144,8 @@ func Command() *cli.Command {
 					return fmt.Errorf("failed to get tag commit: %w", err)
 				}
 
-				if tagCommit.Hash == headCommit.Hash {
+				if tagCommit.TreeHash == headTreeHash {
 					// no changes since last release
-					fmt.Println("false")
-					return nil
-				}
-
-				if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
-					// no changes since last release, release added a new commit
 					fmt.Println("false")
 					return nil
 				}
