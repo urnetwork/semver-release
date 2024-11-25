@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,15 +46,6 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get worktree: %w", err)
 			}
 
-			st, err := wt.Status()
-			if err != nil {
-				return fmt.Errorf("failed to get status: %w", err)
-			}
-
-			if !st.IsClean() {
-				return fmt.Errorf("working directory is not clean:\n%v", st)
-			}
-
 			tags, err := repo.Tags()
 			if err != nil {
 				return fmt.Errorf("failed to get tags: %w", err)
@@ -86,9 +78,50 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get head: %w", err)
 			}
 
+			st, err := wt.Status()
+			if err != nil {
+				return fmt.Errorf("failed to get status: %w", err)
+			}
+
 			headCommit, err := repo.CommitObject(head.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to get head commit: %w", err)
+			}
+
+			fmt.Println("head tree hash", headCommit.TreeHash)
+
+			if !st.IsClean() {
+				_, err := wt.Add(".")
+				if err != nil {
+					return fmt.Errorf("failed to add changes: %w", err)
+				}
+
+				ch, err := wt.Commit("fix: working directory is not clean", &git.CommitOptions{
+					Author: &object.Signature{
+						Name:  "semver-release",
+						Email: "semver-release@urnetwork.io",
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("failed to commit changes: %w", err)
+				}
+
+				defer wt.Reset(&git.ResetOptions{
+					Commit: headCommit.Hash,
+					Mode:   git.MixedReset,
+				})
+				newCommit, err := repo.CommitObject(ch)
+				if err != nil {
+					return fmt.Errorf("failed to get commit: %w", err)
+				}
+
+				// headCommitTree, err := headCommit.Tree()
+				// if err != nil {
+				// 	return fmt.Errorf("failed to get commit tree: %w", err)
+				// }
+
+				fmt.Println("new commit tree hash", newCommit.TreeHash)
+
 			}
 
 			tagRef, err := repo.Tag("v" + latestVersion.String())
