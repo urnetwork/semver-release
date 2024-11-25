@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"github.com/urnetwork/semver-release/latest"
 	"github.com/urnetwork/semver-release/release"
+	release_needed "github.com/urnetwork/semver-release/release-needed"
 )
 
 func main() {
@@ -14,6 +15,7 @@ func main() {
 		Commands: []*cli.Command{
 			latest.Command(),
 			release.Command(),
+			release_needed.Command(),
 		},
 	}
 	app.RunAndExitOnError()

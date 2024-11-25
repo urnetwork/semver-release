@@ -21,6 +21,17 @@ semver-release latest <repo-path>
 This command will output the latest semantic version tag in the repository.
 You can instruct the command to skip printing the end of line character by using the `--skip-newline` / `-n` flag.
 
+### Release Needed
+
+```bash
+semver-release release-needed [repo-path]
+```
+
+This command checks if a new release is needed by comparing the latest tag with the current HEAD. 
+It outputs `true` if changes have been made since the last release, and `false` otherwise.
+You can specify the repository path as an argument (defaults to current directory).
+If the working directory is not clean, it will output an error and exit.
+
 ### Create Release
 ```bash
 semver-release release
