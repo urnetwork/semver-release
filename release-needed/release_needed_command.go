@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/urfave/cli/v2"
 )
 
@@ -45,15 +46,6 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get worktree: %w", err)
 			}
 
-			st, err := wt.Status()
-			if err != nil {
-				return fmt.Errorf("failed to get status: %w", err)
-			}
-
-			if !st.IsClean() {
-				return fmt.Errorf("working directory is not clean:\n%v", st)
-			}
-
 			tags, err := repo.Tags()
 			if err != nil {
 				return fmt.Errorf("failed to get tags: %w", err)
@@ -86,9 +78,46 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get head: %w", err)
 			}
 
+			st, err := wt.Status()
+			if err != nil {
+				return fmt.Errorf("failed to get status: %w", err)
+			}
+
 			headCommit, err := repo.CommitObject(head.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to get head commit: %w", err)
+			}
+
+			headTreeHash := headCommit.TreeHash
+
+			if !st.IsClean() {
+				_, err := wt.Add(".")
+				if err != nil {
+					return fmt.Errorf("failed to add changes: %w", err)
+				}
+
+				ch, err := wt.Commit("fix: working directory is not clean", &git.CommitOptions{
+					Author: &object.Signature{
+						Name:  "semver-release",
+						Email: "semver-release@urnetwork.io",
+					},
+				})
+				if err != nil {
+					return fmt.Errorf("failed to commit changes: %w", err)
+				}
+
+				defer wt.Reset(&git.ResetOptions{
+					Commit: headCommit.Hash,
+					Mode:   git.MixedReset,
+				})
+
+				newCommit, err := repo.CommitObject(ch)
+				if err != nil {
+					return fmt.Errorf("failed to get commit: %w", err)
+				}
+
+				headTreeHash = newCommit.TreeHash
+
 			}
 
 			tagRef, err := repo.Tag("v" + latestVersion.String())
@@ -115,14 +144,8 @@ func Command() *cli.Command {
 					return fmt.Errorf("failed to get tag commit: %w", err)
 				}
 
-				if tagCommit.Hash == headCommit.Hash {
+				if tagCommit.TreeHash == headTreeHash {
 					// no changes since last release
-					fmt.Println("false")
-					return nil
-				}
-
-				if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
-					// no changes since last release, release added a new commit
 					fmt.Println("false")
 					return nil
 				}
