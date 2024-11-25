@@ -97,41 +97,6 @@ func Command() *cli.Command {
 				return fmt.Errorf("failed to get head commit: %w", err)
 			}
 
-			tagRef, err := repo.Tag("v" + latestVersion.String())
-			switch err {
-			case git.ErrTagNotFound:
-				fmt.Println("this is an initial release")
-			case nil:
-				tagCommitHash := tagRef.Hash()
-
-				tagObject, err := repo.TagObject(tagRef.Hash())
-				switch err {
-				case plumbing.ErrObjectNotFound:
-					// tagObject is not a tag, it's a commit
-				case nil:
-					tagCommitHash = tagObject.Target
-				default:
-					return fmt.Errorf("failed to get tag object: %w", err)
-				}
-
-				tagCommit, err := repo.CommitObject(tagCommitHash)
-				if err != nil {
-					return fmt.Errorf("failed to get tag commit: %w", err)
-				}
-
-				if tagCommit.Hash == headCommit.Hash {
-					fmt.Println("No changes since last release, nothing to tag")
-					return nil
-				}
-
-				if len(tagCommit.ParentHashes) == 1 && tagCommit.ParentHashes[0] == headCommit.Hash {
-					fmt.Println("No changes since last release, nothing to tag")
-					return nil
-				}
-			default:
-				return fmt.Errorf("failed to get tag: %w", err)
-			}
-
 			nextVersion := latestVersion.IncPatch()
 
 			wtStatus, err := wt.Status()
